@@ -1,0 +1,39 @@
+CREATE TABLE inbound_messages_http (
+  inbound_message_id BigInt(20) NOT NULL AUTO_INCREMENT,
+  source_number      NVarChar(20) COLLATE utf8_general_ci,
+  mobile_number      NVarChar(19) COLLATE utf8_general_ci,
+  date               Timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  message            Text CHARACTER SET utf8 COLLATE utf8_general_ci,
+  status             NVarChar(30) COLLATE utf8_general_ci,
+  checkNo            Integer(1) DEFAULT 0,
+  extracted          NChar(1) COLLATE utf8_general_ci,
+  UDH                NVarChar(20) COLLATE utf8_general_ci NOT NULL DEFAULT '',
+  DCS                Integer(11) NOT NULL DEFAULT 0,
+  message_id         Integer(11), 
+  PRIMARY KEY (
+      inbound_message_id
+  )
+) ENGINE=MyISAM AUTO_INCREMENT=51218 ROW_FORMAT=DYNAMIC DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE inbound_messages_http COMMENT = '';
+
+
+CREATE TABLE outgoing_message (
+  id                 BigInt(20) NOT NULL AUTO_INCREMENT,
+  from_mobile_number NVarChar(20) COLLATE utf8_general_ci NOT NULL,
+  dest_mobile_number NVarChar(19) COLLATE utf8_general_ci NOT NULL,
+  message_body       Text CHARACTER SET utf8 COLLATE utf8_general_ci,
+  status             SmallInt(6),
+  due_date           DateTime NOT NULL DEFAULT '2100-01-01 00:00:00',
+  creation_date      Timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UDH                NVarChar(40) COLLATE utf8_general_ci,
+  DCS                Integer(11) NOT NULL DEFAULT 0,
+  Priority           Integer(11),
+  dest_port          Integer(6) UNSIGNED,
+  source_port        Integer(6) UNSIGNED, 
+  PRIMARY KEY (
+      id
+  )
+) ENGINE=MyISAM AUTO_INCREMENT=36567183 ROW_FORMAT=DYNAMIC DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE outgoing_message COMMENT = '';
+CREATE INDEX ix_outgoing_message_status 
+ ON outgoing_message(status);
