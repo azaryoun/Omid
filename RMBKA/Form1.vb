@@ -12,7 +12,7 @@ Public Class Form1
         ''Dim strDataBase As String = "easysms"
         ''Dim strConnectionStrting As String = "server=" & strInstance & ";port=3306" & ";database=" & strDataBase & ";uid=" & strUserID & ";pwd=" & strPassword & ";"
         ''cnnEasySMS.ConnectionString = strConnectionStrting
-
+        'A Comment
         ''Try
         ''    cnnEasySMS.Open()
         ''Catch ex As Exception
