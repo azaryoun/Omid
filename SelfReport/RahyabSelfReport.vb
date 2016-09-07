@@ -1,4 +1,5 @@
-﻿Imports MySql.Data.MySqlClient
+﻿Imports System.Data
+Imports MySql.Data.MySqlClient
 
 Public Class RahyabSelfReport
 
@@ -12,7 +13,15 @@ Public Class RahyabSelfReport
     End Sub
 
     Private Sub tmrReport_Elapsed(sender As System.Object, e As System.Timers.ElapsedEventArgs) Handles tmrReport.Elapsed
-        ReportSend()
+
+        'Dim trSMS_Send As New Threading.Thread(AddressOf ReportSend)
+        'trSMS_Send.Start()
+
+        'Dim trSMS_Check As New Threading.Thread(AddressOf CheckNewRecords)
+        'trSMS_Check.Start()
+
+        ''ReportSend()
+
     End Sub
 
     Public Sub ReportSend()
@@ -106,10 +115,139 @@ StartLabel:
             End If
 
         Catch ex As Exception
+
+            Dim strDestination As String()
+            ReDim strDestination(1)
+            strDestination(0) = "09121485002"
+            strDestination(1) = "09122764983"
+
+            strRetval = clsSMS.SendSMS_Batch("An error occured in Omid send report service: " & ex.Message, strDestination, strGatewayUsername, strGatewayPassword, "10006858", strIPAddress, strGatewayCompany, True, False, False, strBatchID)
+
             Dim strInsertQuery As String = ""
             Dim strDate As String = Date.Now.ToString("yyyy/MM/dd")
             Dim strSDate As String = Date.Now.ToString("yyyy/MM/dd HH:mm:ss")
             strInsertQuery = "insert into easysms.report_log (report_date, status, message_text, due_date) values ('" & strDate & "','" & "An Error Occured." & "','" & ex.Message & "','" & strSDate & "');"
+
+            Dim cmdInsert As New Sql.Data.MySqlClient.MySqlCommand
+            cmdInsert.Connection = cnnEasySMS
+            cmdInsert.CommandText = strInsertQuery
+            cmdInsert.CommandType = CommandType.Text
+            cmdInsert.ExecuteNonQuery()
+            cmdInsert.Dispose()
+        End Try
+
+    End Sub
+
+    Public Sub CheckNewRecords()
+
+StartLabel:
+        Dim clsSMS As New clsSMS
+        Dim strRetval As String()
+
+        Dim strGatewayUsername As String = "karafariniomid"
+        Dim strGatewayPassword As String = "r289431325t3"
+        Dim strGatewayCompany As String = "KARAFARINIOMID"
+        Dim strBatchID As String = strGatewayCompany & "+F+" & Date.Now.Millisecond.ToString()
+        Dim strIPAddress As String = "http://193.104.22.14:2055/CPSMSService/Access"
+
+        Dim intHour As Integer = Date.Now.Hour
+
+        Dim cnnEasySMS As New MySql.Data.MySqlClient.MySqlConnection
+        Dim strInstance As String = "127.0.0.1"
+        Dim strUserID As String = "smsuser"
+        Dim strPassword As String = "adp"
+        Dim strDataBase As String = "easysms"
+        Dim strConnectionStrting As String = "server=" & strInstance & ";port=3306" & ";database=" & strDataBase & ";uid=" & strUserID & ";pwd=" & strPassword & ";"
+        cnnEasySMS.ConnectionString = strConnectionStrting
+
+        Try
+            cnnEasySMS.Open()
+        Catch ex As Exception
+            Threading.Thread.Sleep(1000)
+            GoTo StartLabel
+        End Try
+
+        Try
+
+            Dim strSelectQuery As String = "SELECT count(*) AS cntSMS FROM easysms.outgoing_message ;"
+            Dim cmdSelect As MySqlCommand = New MySqlCommand(strSelectQuery, cnnEasySMS)
+            cmdSelect.CommandType = CommandType.Text
+            Dim rdrSelect As MySqlDataReader = cmdSelect.ExecuteReader
+
+            If rdrSelect.Read = False Then
+                rdrSelect.Close()
+                Threading.Thread.Sleep(1000)
+                GoTo StartLabel
+            End If
+
+            Dim intTotalCnt As Integer = rdrSelect.GetInt32("cntSMS")
+            rdrSelect.Close()
+
+            Threading.Thread.Sleep(300000)
+
+            Dim str2ndSelectQuery As String = "SELECT count(*) AS cntSMS FROM easysms.outgoing_message ;"
+            Dim cmd2ndSelect As MySqlCommand = New MySqlCommand(str2ndSelectQuery, cnnEasySMS)
+            cmd2ndSelect.CommandType = CommandType.Text
+            Dim rdr2ndSelect As MySqlDataReader = cmd2ndSelect.ExecuteReader
+
+            If rdr2ndSelect.Read = False Then
+                rdr2ndSelect.Close()
+                Threading.Thread.Sleep(1000)
+                GoTo StartLabel
+            End If
+
+            Dim int2ndTotalCnt As Integer = rdr2ndSelect.GetInt32("cntSMS")
+            rdr2ndSelect.Close()
+
+            Dim strMsg As String = ""
+            Dim strDestination As String() = Nothing
+
+            If intTotalCnt = int2ndTotalCnt AndAlso intHour >= 7 AndAlso intHour <= 22 Then
+
+                strMsg = "گزارش سرویس پایش مورخ " & GetPersianDate(Date.Now) & vbCrLf & "تعداد " & intTotalCnt & " رکورد ذخیره شده است و رکورد جدیدی در 5 دقیقه اخیر ایجاد نشده است."
+                ReDim strDestination(3)
+                strDestination(0) = "09121485002"
+                strDestination(1) = "09121576554"
+                strDestination(2) = "09122764983"
+                strDestination(3) = "09126133721"
+
+            End If
+
+            Dim strStatus As String = ""
+            If strMsg <> "" AndAlso strDestination.Count > 0 Then
+                strRetval = clsSMS.SendSMS_Batch(strMsg, strDestination, strGatewayUsername, strGatewayPassword, "10006858", strIPAddress, strGatewayCompany, True, False, False, strBatchID)
+                If strRetval(0) = "CHECK_OK" Then
+                    strStatus = "SMS Sent Successfully"
+                Else
+                    strStatus = strRetval(1)
+                End If
+
+                Dim strInsertQuery As String = ""
+                Dim strDate As String = Date.Now.ToString("yyyy/MM/dd")
+                Dim strSDate As String = Date.Now.ToString("yyyy/MM/dd HH:mm:ss")
+                strInsertQuery = "insert into easysms.report_log (report_date, status, message_text, due_date) values ('" & strDate & "','" & strStatus & "','" & strMsg & "','" & strSDate & "');"
+
+                Dim cmdInsert As New MySql.Data.MySqlClient.MySqlCommand
+                cmdInsert.Connection = cnnEasySMS
+                cmdInsert.CommandText = strInsertQuery
+                cmdInsert.CommandType = CommandType.Text
+                cmdInsert.ExecuteNonQuery()
+                cmdInsert.Dispose()
+            End If
+
+        Catch ex As Exception
+
+            Dim strDestination As String()
+            ReDim strDestination(1)
+            strDestination(0) = "09121485002"
+            strDestination(1) = "09122764983"
+
+            strRetval = clsSMS.SendSMS_Batch("An error occured in Omid check records report service: " & ex.Message, strDestination, strGatewayUsername, strGatewayPassword, "10006858", strIPAddress, strGatewayCompany, True, False, False, strBatchID)
+
+            Dim strInsertQuery As String = ""
+            Dim strDate As String = Date.Now.ToString("yyyy/MM/dd")
+            Dim strSDate As String = Date.Now.ToString("yyyy/MM/dd HH:mm:ss")
+            strInsertQuery = "insert into easysms.report_log (report_date, status, message_text, due_date) values ('" & strDate & "','" & "An error occured in Omid check records report service." & "','" & ex.Message & "','" & strSDate & "');"
 
             Dim cmdInsert As New MySql.Data.MySqlClient.MySqlCommand
             cmdInsert.Connection = cnnEasySMS
